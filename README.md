@@ -1,260 +1,74 @@
-# Predikce Nájemného Bytů
+# Predikce Nájemného Bytů v ČR
 
-Tento projekt se zaměřuje na predikci cen nájemného bytů v České republice pomocí pokročilých modelů strojového učení a hlubokého učení.
+Projekt pro predikci měsíčního nájemného bytů v České republice pomocí strojového učení.
 
-## Přehled Projektu
+![Streamlit aplikace](img.png)
 
-Projekt využívá dataset obsahující přibližně 20 000 záznamů bytů k pronájmu, získaných ze čtyř předních tuzemských realitních portálů. Cílem je vytvořit přesný predikční model, který dokáže odhadnout měsíční nájemné na základě charakteristik bytu.
+## O projektu
 
-## Hlavní Cíle
+Model predikuje měsíční nájemné na základě charakteristik bytu - lokality, velikosti, stavu, vybavení a dalších parametrů. Dataset obsahuje ~20 000 záznamů z českých realitních portálů.
 
-- Predikovat měsíční nájemné bytů na základě jejich charakteristik
-- Analyzovat vliv jednotlivých faktorů na výši nájemného
-- Porovnat výkon různých modelů strojového učení
-- Optimalizovat hyperparametry pro dosažení nejlepších výsledků
+## Výsledky modelů
 
-## Dataset
+| Model | MAE (Kč) |
+|-------|----------|
+| **XGBoost + Optuna** | **2 741** |
+| MLP (Neural Network) | 3 319 |
+| CNN | 3 772 |
 
-### Zdroj Dat
-Dataset byl získán ze čtyř předních tuzemských realitních webů. Je organizován do čtyř hlavních kategorií: byty, domy, pozemky a komerční nemovitosti. Každá z těchto kategorií je dále rozdělena do tří podkategorií: aukce, pronájem a prodej.
+*MAE = Mean Absolute Error (průměrná absolutní chyba predikce)*
 
-**Poznámka:** Dataset není součástí tohoto repozitáře z důvodu možných právních komplikací a ochrany osobních údajů. Pro vlastní experimenty doporučuji použít veřejně dostupné datasety nebo vlastní data.
+**Nejlepší model:** XGBoost s Optuna hyperparameter tuningem dosahuje MAE ~2 741 Kč.
 
-### Popis Atributů
-**Byty:** Přibližně 20 000 záznamů (po odstranění outlierů) s 14 atributy:
+## Vstupní parametry modelu
 
-- **id**: Unikátní identifikátor pro každou nabídku bytu
-- **building_type**: Typ budovy (cihlová, panelová, smíšená, skelet, atd.)
-- **city**: Město, kde se byt nachází
-- **condition**: Stav bytu (nový, velmi dobrý, dobrý, po rekonstrukci, atd.)
-- **estate_type**: Typ nemovitosti (všechny záznamy jsou byty)
-- **floor_space**: Celková podlahová plocha bytu v m²
-- **land_space**: Pozemek spojený s bytem (často 0 u bytů)
-- **price**: Měsíční nájemné v Kč (cílová proměnná)
-- **region**: Geografická oblast
-- **sale_type**: Typ nabídky (pronájem, prodej, aukce)
-- **source**: Zdroj dat (realitní portál)
-- **disposition**: Dispozice bytu (1+kk, 2+1, 3+kk, atd.)
-- **equipment**: Úroveň vybavení (nezařízeno, částečně, plně zařízeno)
-- **penb**: Energetický průkaz budovy (A-G)
+- **Lokalita**: město, kraj
+- **Velikost**: podlahová plocha (m²), dispozice (1+kk, 2+1, ...)
+- **Stav**: novostavba, po rekonstrukci, dobrý stav, ...
+- **Vybavení**: zařízeno / částečně / nezařízeno
+- **Energetická třída**: PENB (A-G)
+- **Typ budovy**: cihlová, panelová, ...
 
-### Předzpracování Dat
+## Použité technologie
 
-#### 1. Ošetření Chybějících Hodnot
-- `condition`: vyplněno jako 'UNDEFINED'
-- `land_space`: vyplněno hodnotou 0
-- `disposition`: vyplněno jako 'UNDEFINED'
-- `equipment`: vyplněno jako 'UNDEFINED'
-- `penb`: vyplněno hodnotou 'G' (nejhorší)
+- **XGBoost** - Gradient boosting model
+- **TensorFlow/Keras** - Neuronové sítě (MLP, CNN)
+- **Optuna** - Optimalizace hyperparametrů
+- **Scikit-learn** - Preprocessing
+- **Streamlit** - Webová aplikace
+- **SHAP** - Interpretace modelu
 
-#### 2. Feature Engineering
-Vytvořeny nové atributy:
-- `price_per_land_space`: Cena na m² pozemku
-- `price_per_floor_space`: Cena na m² podlahové plochy
-
-#### 3. Kódování Kategorických Proměnných
-- **Target Encoding**: `city`, `region`, `disposition`
-- **Ordinální Encoding**: `equipment` (0-3), `penb` (0-6)
-- **One-Hot Encoding**: `condition`, `building_type`
-
-#### 4. Odstranění Outlierů
-Po analýze dat byly odstraněny extrémní hodnoty:
-- **Ceny < 1000 Kč**: Pravděpodobně chyby v datech
-- **Ceny > 99. percentil** (~89 672 Kč): Extrémně vysoké ceny
-- **Podlahová plocha < 10 m²**: Nereálně malé byty
-- **Podlahová plocha > 250 m²**: Nereálně velké byty
-
-**Výsledek:** Odstraněno ~800 outlierů (3.8% dat), což výrazně zlepšilo stabilitu a přesnost modelů.
-
-## Použité Modely
-
-### 1. Multilayer Perceptron (MLP)
-- **Architektura**: 256 → 128 → 64 → 32 → 1 neuronů
-- **Aktivační funkce**: ReLU
-- **Regularizace**: L2 (0.001)
-- **Optimizátor**: Adam (learning rate: 0.001)
-- **Callbacks**: EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-
-### 2. Convolutional Neural Network (CNN)
-- **Architektura**:
-  - 2 konvoluční vrstvy (16 a 32 filtrů)
-  - 2 plně propojené vrstvy (64 a 32 neuronů)
-- **Aktivační funkce**: ReLU
-- **Regularizace**: L2 (0.001)
-- **Optimizátor**: Adam (learning rate: 0.0005)
-- **Callbacks**: EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-
-### 3. XGBoost s RandomizedSearchCV
-- **Hyperparametr tuning**: 40 iterací, 3-fold cross-validation
-- **Optimalizované parametry**: learning_rate, max_depth, subsample, colsample_bytree, reg_alpha, reg_lambda
-- **Early stopping**: 20 kol
-
-### 4. XGBoost s Optuna
-- **Hyperparametr optimalizace**: 100 trials
-- **Cross-validation**: 5-fold KFold
-- **Optimalizační metrika**: MAE
-- **Optimalizované parametry**:
-  - learning_rate: 0.01-0.3 (log scale)
-  - max_depth: 3-10
-  - reg_alpha, reg_lambda: 0.01-10.0 (log scale)
-  - subsample, colsample_bytree: 0.5-1.0
-  - min_child_weight: 1-7
-
-## Výsledky
-
-### Před Odstraněním Outlierů
-
-| Model | MAE | Poznámka |
-|-------|-----|----------|
-| CNN | 36.37 | Nejlepší model |
-| MLP | 77.48 | Středně přesný |
-| XGBoost (RandomizedSearch) | 108.69 | Nejhorší výkon |
-
-### Po Odstranění Outlierů (Očekávané Zlepšení)
-
-Po odstranění outlierů se očekává **zlepšení MAE o 10-20%** u všech modelů:
-
-- **CNN**: MAE ~29-33 (zlepšení díky čistším datům)
-- **MLP**: MAE ~62-70 (výrazné zlepšení)
-- **XGBoost s Optuna**: MAE ~30-40 (významné zlepšení díky optimalizaci)
-
-### Porovnání Modelů
-
-#### Convolutional Neural Network (CNN) 
-**Výhody:**
-- Nejnižší MAE ze všech testovaných modelů
-- Schopnost zachytit komplexní prostorové vzory v datech
-- Velmi dobré sladění trénovací a validační loss
-- Minimální přetrénování
-
-**Nevýhody:**
-- Delší doba trénování
-- Vyšší výpočetní náročnost
-- Méně interpretovatelný
-
-#### Multilayer Perceptron (MLP)
-**Výhody:**
-- Dobrý poměr přesnosti a rychlosti
-- Jednodušší architektura než CNN
-- Klesající trend loss během trénování
-
-**Nevýhody:**
-- Vyšší MAE než CNN
-- Prostor pro zlepšení
-- Náchylnost k přetrénování
-
-#### XGBoost s RandomizedSearchCV
-**Výhody:**
-- Rychlé trénování
-- Dobrá interpretovatelnost
-- Feature importance analýza
-
-**Nevýhody:**
-- Nejvyšší MAE ze všech modelů
-- Méně efektivní při zachycování komplexních vztahů
-
-#### XGBoost s Optuna 
-**Výhody:**
-- Automatická optimalizace hyperparametrů
-- Vynikající poměr přesnosti a rychlosti
-- Visualizace optimalizačního procesu
-- Parameter importance analýza
-- Očekávaně nejlepší výkon po odstranění outlierů
-
-**Nevýhody:**
-- Delší doba optimalizace (100 trials)
-- Vyžaduje více výpočetních zdrojů
-
-## Hlavní Zjištění
-
-### 1. Vliv Outlierů
-- **7.86%** dat obsahovalo odlehlé hodnoty
-- Extrémní ceny (99 Kč - 1 150 000 Kč) výrazně zkreslují model
-- Odstranění outlierů vedlo ke stabilnějším predikcím
-
-### 2. Důležité Faktory
-Na základě analýz jsou nejdůležitější faktory pro predikci nájemného:
-1. **Poloha** (město a region) - nejvýznamnější vliv
-2. **Podlahová plocha** - přímá korelace s cenou
-3. **Dispozice** - typ bytu (1+kk, 2+1, atd.)
-4. **Stav bytu** - nový vs. po rekonstrukci vs. starý
-5. **Vybavení** - zařízený vs. nezařízený
-
-### 3. Porovnání Přístupů
-- **Deep Learning** (CNN, MLP): Lepší pro zachycení komplexních nelineárních vztahů
-- **Gradient Boosting** (XGBoost): Rychlejší trénování, snadnější interpretace
-- **Optuna optimalizace**: Významně zlepšuje výkon gradient boostingu
-
-## Závěry
-
-### Doporučený Model
-Pro produkční nasazení doporučuji **dva přístupy**:
-
-1. **CNN model** - Pro nejvyšší přesnost
-   - Nejnižší MAE
-   - Nejlepší generalizace
-   - Vhodný když je prioritou přesnost
-
-2. **XGBoost s Optuna** - Pro balanc rychlosti a přesnosti
-   - Velmi dobrá přesnost po optimalizaci
-   - Rychlejší predikce
-   - Snadnější interpretace výsledků
-   - Vhodný pro produkční prostředí
-
-### Klíčové Poznatky
-
-1. **Kvalita dat je zásadní**
-   - Odstranění outlierů výrazně zlepšuje výkon všech modelů
-   - Správné feature engineering přináší lepší výsledky
-
-2. **Hyperparameter tuning je důležitý**
-   - Optuna přináší významné zlepšení oproti manuálnímu nastavení
-   - Automatická optimalizace šetří čas a zlepšuje výsledky
-
-3. **Deep Learning vs. Gradient Boosting**
-   - CNN dosahuje nejlepších výsledků pro složitá data
-   - XGBoost s Optuna nabízí nejlepší poměr výkon/rychlost
-   - Volba závisí na konkrétních požadavcích projektu
-
-4. **Vliv lokality**
-   - Město a region jsou nejvýznamnější prediktory
-   - Target encoding zachycuje geografické cenové rozdíly
-
-
-##  Použité Technologie
-
-- **Python 3.x**
-- **TensorFlow/Keras** - Deep learning modely
-- **XGBoost** - Gradient boosting
-- **Optuna** - Hyperparameter optimization
-- **Scikit-learn** - Preprocessing, metrics
-- **Pandas** - Data manipulation
-- **NumPy** - Numerical operations
-- **Matplotlib/Seaborn** - Visualization
-- **Category Encoders** - Categorical encoding
-
-## Struktura Projektu
+## Struktura projektu
 
 ```
 EstateShowCase/
-│
-├── data/
-│   └── apartment_properties_rent.csv
-│
-├── models/
-│   ├── convolutional_neural_network.keras
-│   └── multilayer_perceptron.keras
-│
-├── prediction_model.ipynb          # Hlavní notebook s modely
-└── README.md                        # Tento soubor
+├── data/                       # Dataset (není v repo)
+├── models/                     # Uložené modely
+│   ├── xgboost.json
+│   ├── multilayer_perceptron.keras
+│   └── convolutional_neural_network.keras
+├── huggingface_app/            # Streamlit aplikace
+│   ├── app.py
+│   ├── requirements.txt
+│   └── models/
+├── prediction_model.ipynb      # Hlavní notebook
+└── README.md
 ```
 
-## Poznámky
+## Spuštění aplikace lokálně
 
-- Dataset není součástí repozitáře z právních důvodů
-- Projekt byl vytvořen pro vzdělávací účely
-- Výsledky se mohou lišit v závislosti na použitých datech
+```bash
+cd huggingface_app
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Budoucí vývoj
+
+- Nasazení modelu do cloudu (Hugging Face Spaces / Streamlit Cloud)
+- REST API pro integraci do jiných aplikací
 
 ---
 
+**Autor:** Tomáš
 **Poslední aktualizace:** Leden 2026
