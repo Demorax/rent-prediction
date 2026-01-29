@@ -1,74 +1,131 @@
-# Predikce Nájemného Bytů v ČR
+# Predikce Najemneho Bytu v CR
 
-Projekt pro predikci měsíčního nájemného bytů v České republice pomocí strojového učení.
+Predikce mesicniho najemneho bytu pomoci XGBoost. REST API (FastAPI) + webova aplikace (Streamlit).
 
-![Streamlit aplikace](img.png)
+![Streamlit aplikace](frontend_img.png)
 
-## O projektu
+## Technologie
 
-Model predikuje měsíční nájemné na základě charakteristik bytu - lokality, velikosti, stavu, vybavení a dalších parametrů. Dataset obsahuje ~20 000 záznamů z českých realitních portálů.
+- **XGBoost** - predikce ceny (GPU)
+- **FastAPI** - REST API s Prometheus metrikami
+- **Streamlit** - webove rozhrani
+- **Optuna** - optimalizace hyperparametru
 
-## Výsledky modelů
+## Vysledky
 
-| Model | MAE (Kč) |
-|-------|----------|
-| **XGBoost + Optuna** | **2 741** |
-| MLP (Neural Network) | 3 319 |
-| CNN | 3 772 |
+| Model | MAE |
+|-------|-----|
+| XGBoost + Optuna | ~2 700 Kc |
 
-*MAE = Mean Absolute Error (průměrná absolutní chyba predikce)*
-
-**Nejlepší model:** XGBoost s Optuna hyperparameter tuningem dosahuje MAE ~2 741 Kč.
-
-## Vstupní parametry modelu
-
-- **Lokalita**: město, kraj
-- **Velikost**: podlahová plocha (m²), dispozice (1+kk, 2+1, ...)
-- **Stav**: novostavba, po rekonstrukci, dobrý stav, ...
-- **Vybavení**: zařízeno / částečně / nezařízeno
-- **Energetická třída**: PENB (A-G)
-- **Typ budovy**: cihlová, panelová, ...
-
-## Použité technologie
-
-- **XGBoost** - Gradient boosting model
-- **TensorFlow/Keras** - Neuronové sítě (MLP, CNN)
-- **Optuna** - Optimalizace hyperparametrů
-- **Scikit-learn** - Preprocessing
-- **Streamlit** - Webová aplikace
-- **SHAP** - Interpretace modelu
-
-## Struktura projektu
-
-```
-EstateShowCase/
-├── data/                       # Dataset (není v repo)
-├── models/                     # Uložené modely
-│   ├── xgboost.json
-│   ├── multilayer_perceptron.keras
-│   └── convolutional_neural_network.keras
-├── huggingface_app/            # Streamlit aplikace
-│   ├── app.py
-│   ├── requirements.txt
-│   └── models/
-├── prediction_model.ipynb      # Hlavní notebook
-└── README.md
-```
-
-## Spuštění aplikace lokálně
+## Spusteni
 
 ```bash
-cd huggingface_app
-pip install -r requirements.txt
-streamlit run app.py
+# Instalace
+conda env create -f environment.yml
+conda activate estate
+pip install -e .
+
+# Trenovani modelu
+python scripts/train_pipeline.py --optimize --trials 50
+
+# API (port 8000)
+uvicorn src.api.main:app --reload
+
+# Streamlit (port 8501)
+streamlit run huggingface_app/app.py
 ```
 
-## Budoucí vývoj
+## API Endpointy
 
-- Nasazení modelu do cloudu (Hugging Face Spaces / Streamlit Cloud)
-- REST API pro integraci do jiných aplikací
+| Endpoint | Popis |
+|----------|-------|
+| `POST /predict` | Predikce ceny |
+| `POST /predict/explain` | Predikce + SHAP |
+| `GET /health` | Stav API |
+| `GET /metrics` | Prometheus metriky |
+
+Swagger: http://localhost:8000/docs
+
+## Struktura
+
+```
+src/
+├── api/           # FastAPI
+├── data/          # Loader, preprocessing
+├── models/        # Train, predict
+└── evaluation/    # Metriky
+
+scripts/
+└── train_pipeline.py
+
+huggingface_app/
+└── app.py         # Streamlit
+```
 
 ---
 
-**Autor:** Tomáš
-**Poslední aktualizace:** Leden 2026
+# Czech Apartment Rent Prediction
+
+Monthly rent prediction using XGBoost. REST API (FastAPI) + web app (Streamlit).
+
+## Tech Stack
+
+- **XGBoost** - price prediction (GPU)
+- **FastAPI** - REST API with Prometheus metrics
+- **Streamlit** - web interface
+- **Optuna** - hyperparameter optimization
+
+## Results
+
+| Model | MAE |
+|-------|-----|
+| XGBoost + Optuna | ~2 700 CZK |
+
+## Quick Start
+
+```bash
+# Install
+conda env create -f environment.yml
+conda activate estate
+pip install -e .
+
+# Train model
+python scripts/train_pipeline.py --optimize --trials 50
+
+# API (port 8000)
+uvicorn src.api.main:app --reload
+
+# Streamlit (port 8501)
+streamlit run huggingface_app/app.py
+```
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /predict` | Price prediction |
+| `POST /predict/explain` | Prediction + SHAP |
+| `GET /health` | API status |
+| `GET /metrics` | Prometheus metrics |
+
+Swagger: http://localhost:8000/docs
+
+## Project Structure
+
+```
+src/
+├── api/           # FastAPI
+├── data/          # Loader, preprocessing
+├── models/        # Train, predict
+└── evaluation/    # Metrics
+
+scripts/
+└── train_pipeline.py
+
+huggingface_app/
+└── app.py         # Streamlit
+```
+
+---
+
+**Dataset:** ~20 000 apartments from Czech real estate portals
