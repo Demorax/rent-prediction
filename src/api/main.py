@@ -1,58 +1,47 @@
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from src import __version__
-from src.api.schemas import ApartmentInput, HealthResponse, PredictionResponse, PredictionWithShapResponse
-from src.models.predict import RentPredictor
-
-predictor: RentPredictor | None = None
+from src.api.dependencies import PredictorService
+from src.api.exceptions import APIError, api_error_handler
+from src.api.routes import health_router, prediction_router
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    global predictor
-    logger.info("Loading model...")
-    try:
-        predictor = RentPredictor.from_pretrained()
-        logger.info("Model loaded")
-    except FileNotFoundError as e:
-        logger.warning(f"Model not found: {e}")
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("Starting application...")
+    PredictorService.load()
     yield
+    logger.info("Shutting down application...")
 
 
-app = FastAPI(title="Czech Rent Prediction API", version=__version__, lifespan=lifespan)
-Instrumentator().instrument(app).expose(app)
-
-
-@app.get("/health", response_model=HealthResponse)
-def health():
-    return HealthResponse(
-        status="ok" if predictor else "degraded",
-        model_loaded=predictor is not None,
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Czech Rent Prediction API",
         version=__version__,
+        lifespan=lifespan,
     )
 
-
-@app.post("/predict", response_model=PredictionResponse)
-def predict(apartment: ApartmentInput):
-    if not predictor:
-        raise HTTPException(503, "Model not loaded")
-
-    result = predictor.predict(apartment.model_dump())
-    return PredictionResponse(predicted_rent=round(result.predicted_rent, 2))
-
-
-@app.post("/predict/explain", response_model=PredictionWithShapResponse)
-def predict_explain(apartment: ApartmentInput):
-    if not predictor:
-        raise HTTPException(503, "Model not loaded")
-
-    result = predictor.predict(apartment.model_dump(), return_shap=True)
-    return PredictionWithShapResponse(
-        predicted_rent=round(result.predicted_rent, 2),
-        shap_base_value=result.feature_contributions["base_value"],
-        top_features=result.feature_contributions["top_features"],
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
+
+    app.add_exception_handler(APIError, api_error_handler)
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+    app.include_router(health_router)
+    app.include_router(prediction_router, prefix="/v1")
+
+    return app
+
+
+app = create_app()
