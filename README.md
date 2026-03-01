@@ -13,9 +13,14 @@ Predikce mesicniho najemneho bytu pomoci XGBoost. REST API (FastAPI) + webova ap
 
 ## Vysledky
 
-| Model | MAE |
-|-------|-----|
-| XGBoost + Optuna | ~2 700 Kc |
+| Model | MAE | MAPE | R² |
+|-------|-----|------|----|
+| XGBoost + Optuna | ~2 700 Kc | ~15 % | 0.85 |
+| MLP (Keras) | ~3 300 Kc | ~19 % | 0.81 |
+| CNN (Keras) | ~3 470 Kc | ~20 % | 0.80 |
+
+XGBoost prekonal neuronove site o ~18 % v MAE a ~4 procentni body v MAPE.
+Prechod z RandomizedSearchCV na Optuna zlepšil MAPE o ~0.3 procentniho bodu.
 
 ## Spusteni
 
@@ -77,9 +82,14 @@ Monthly rent prediction using XGBoost. REST API (FastAPI) + web app (Streamlit).
 
 ## Results
 
-| Model | MAE |
-|-------|-----|
-| XGBoost + Optuna | ~2 700 CZK |
+| Model | MAE | MAPE | R² |
+|-------|-----|------|----|
+| XGBoost + Optuna | ~2 700 CZK | ~15 % | 0.85 |
+| MLP (Keras) | ~3 300 CZK | ~19 % | 0.81 |
+| CNN (Keras) | ~3 470 CZK | ~20 % | 0.80 |
+
+XGBoost outperforms neural networks by ~18 % in MAE and ~4 percentage points in MAPE.
+Switching from RandomizedSearchCV to Optuna improved MAPE by ~0.3 percentage points.
 
 ## Quick Start
 

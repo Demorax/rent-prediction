@@ -5,7 +5,7 @@ import streamlit as st
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-st.set_page_config(page_title="Predikce najemneho", layout="centered")
+st.set_page_config(page_title="Kolik zaplatím za nájem?", layout="centered")
 
 BUILDING_TYPES = {
     "Cihlova": "BRICK",
@@ -87,23 +87,23 @@ def call_prediction_api(data: dict) -> dict | None:
 
 
 def main():
-    st.title("Predikce mesicniho najemneho")
-    st.write("Zadejte parametry bytu pro odhad ceny najmu.")
+    st.title("Kolik zaplatím za nájem?")
+    st.caption("Zadej parametry bytu a model ti řekne, kolik asi zaplatíš.")
     st.divider()
 
     api_ok = check_api_health()
     if not api_ok:
-        st.warning("API neni dostupne nebo model neni nacteny.")
+        st.warning("Backend neni spuštěný. Spusť: `uvicorn src.api.main:app --reload`")
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Lokalita")
-        city = st.text_input("Mesto", value="Praha")
+        city = st.text_input("Město", value="Praha")
         region = st.selectbox("Kraj", REGIONS, index=0)
 
         st.subheader("Velikost")
-        floor_space = st.slider("Podlahova plocha (m2)", 10, 250, 50)
+        floor_space = st.slider("Podlahová plocha (m²)", 10, 250, 50)
         disposition_label = st.selectbox("Dispozice", list(DISPOSITIONS.keys()), index=2)
 
     with col2:
@@ -111,15 +111,15 @@ def main():
         building_type_label = st.selectbox("Typ budovy", list(BUILDING_TYPES.keys()), index=0)
         condition_label = st.selectbox("Stav bytu", list(CONDITIONS.keys()), index=0)
 
-        st.subheader("Vybaveni")
-        equipment_label = st.selectbox("Vybaveni", list(EQUIPMENT.keys()), index=0)
-        penb_label = st.selectbox("Energeticka trida", list(PENB.keys()), index=4)
+        st.subheader("Vybavení")
+        equipment_label = st.selectbox("Vybavení", list(EQUIPMENT.keys()), index=0)
+        penb_label = st.selectbox("Energetická třída", list(PENB.keys()), index=4)
 
     st.divider()
 
-    if st.button("Predikovat cenu", type="primary", use_container_width=True):
+    if st.button("Odhadnout nájem", type="primary", use_container_width=True):
         if not api_ok:
-            st.error("API neni dostupne.")
+            st.error("Backend není dostupný.")
             return
 
         data = {
@@ -134,25 +134,25 @@ def main():
             "penb": PENB[penb_label],
         }
 
-        with st.spinner("Pocitam..."):
+        with st.spinner("Počítám..."):
             result = call_prediction_api(data)
 
         if result:
             price = result["predicted_rent"]
-            st.success(f"Odhadovane najemne: **{price:,.0f} Kc/mesic**")
-            st.info(f"Rozsah: {max(0, price - 2500):,.0f} - {price + 2500:,.0f} Kc")
+            st.success(f"Odhadované nájemné: **{price:,.0f} Kč/měsíc**")
+            st.info(f"Reálný rozsah bývá {max(0, price - 2500):,.0f} – {price + 2500:,.0f} Kč (MAPE modelu ~15 %)")
 
-            with st.expander("Zadane parametry"):
+            with st.expander("Zadané parametry"):
                 st.json(data)
 
     st.divider()
-    with st.expander("O aplikaci"):
+    with st.expander("O modelu"):
         st.write("""
-        **Model:** XGBoost s Optuna hyperparameter tuning
+        **Model:** XGBoost trénovaný na ~20 000 inzerátech z českých realitních portálů
 
-        **Data:** ~20 000 bytu z ceskych realitnich portalu
+        **Přesnost:** MAPE ~15 % (průměrná relativní odchylka od skutečné ceny)
 
-        **Presnost:** MAE ~2 500 Kc
+        **Optimalizace:** hyperparametry nalezeny pomocí Optuna (Bayesian search)
         """)
 
 
